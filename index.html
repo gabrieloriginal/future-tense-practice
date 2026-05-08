@@ -269,19 +269,335 @@
         let leaderboardData =[]; 
         let leaderboardPollingInterval = null;
         
-        // 1. VARIABLE PARA CAPTURAR LA IP
+        // VARIABLES DE ESTADO Y SEGURIDAD
         let userIP = "unknown"; 
         let allowedNames =[]; 
-        let originalAllowedNames = []; 
+        let originalAllowedNames =[]; 
+        let namesFailed = false; // <-- Controla si el servidor de nombres falló
 
         const futureQuestions =[
-            { text: "I think people ___ on Mars in the future.", correct: "will live", distractors: ["are living", "going to live", "lived"], hint: "Prediction without evidence: use 'will'." },
-            { text: "Look at those dark clouds! It ___.", correct: "is going to rain", distractors: ["will rain", "rains", "is raining"], hint: "Prediction based on present evidence: use 'going to'." },
-            { text: "By next year, I ___ my degree.", correct: "will have finished", distractors:["will finish", "am finishing", "have finished"], hint: "Action completed before a time in the future: use Future Perfect." }
-            // Se puede agregar más aquí (mantuve un par por brevedad para no hacer gigantesco el código de respuesta)
-        ];
+            // --- BLOQUE 1 (1 al 10) ---
+            { text: "I think people ___ on Mars in the future.", correct: "will live", distractors:["are living", "going to live", "lived"], hint: "Prediction without evidence: use 'will'." },
+            { text: "Look at those dark clouds! It ___.", correct: "is going to rain", distractors:["will rain", "rains", "is raining"], hint: "Prediction based on present evidence: use 'going to'." },
+            { text: "By next year, I ___ my degree.", correct: "will have finished", distractors: ["will finish", "am finishing", "have finished"], hint: "Action completed before a time in the future: use Future Perfect." },
+            { text: "I am sure you ___ the exam.", correct: "will pass", distractors: ["pass", "passed", "passing"], hint: "Prediction: use 'will'." },
+            { text: "In 2050, cars ___ in the sky.", correct: "will fly", distractors: ["fly", "flew", "are flying"], hint: "Prediction: use 'will'." },
+            { text: "He ___ a great doctor one day.", correct: "will be", distractors:["is", "was", "is being"], hint: "Prediction: use 'will'." },
+            { text: "I think it ___ tomorrow.", correct: "will snow", distractors:["snows", "snowed", "is snowing"], hint: "Prediction: use 'will'." },
+            { text: "They ___ the match, they are too good.", correct: "will win", distractors: ["win", "won", "winning"], hint: "Prediction: use 'will'." },
+            { text: "Don't worry, I ___ late.", correct: "won't be", distractors:["am not", "wasn't", "haven't been"], hint: "Promise: use 'will'." },
+            { text: "We ___ a solution to this problem.", correct: "will find", distractors: ["find", "found", "are finding"], hint: "Prediction: use 'will'." },
 
-        // 2. FUNCIÓN PARA CAPTURAR LA IP USANDO LA API QUE MENCIONASTE (ipify)
+            // --- BLOQUE 2 (11 al 20) ---
+            { text: "It's cold. I ___ the window.", correct: "will close", distractors: ["close", "closed", "am closing"], hint: "Instant decision: use 'will'." },
+            { text: "The phone is ringing! I ___ it.", correct: "will answer", distractors:["answer", "answered", "am answering"], hint: "Instant decision: use 'will'." },
+            { text: "I'm thirsty. I ___ a glass of water.", correct: "will get", distractors:["get", "got", "getting"], hint: "Instant decision: use 'will'." },
+            { text: "You look tired. I ___ the dishes.", correct: "will wash", distractors:["wash", "washed", "am washing"], hint: "Instant decision / Offer: use 'will'." },
+            { text: "Wait, I ___ the door for you.", correct: "will open", distractors:["open", "opened", "am opening"], hint: "Instant decision / Offer: use 'will'." },
+            { text: "I forgot my pen! - I ___ you mine.", correct: "will lend", distractors:["lend", "lent", "am lending"], hint: "Instant decision / Offer: use 'will'." },
+            { text: "This bag is heavy. I ___ it.", correct: "will carry", distractors:["carry", "carried", "am carrying"], hint: "Instant decision / Offer: use 'will'." },
+            { text: "I ___ the bill tonight.", correct: "will pay", distractors: ["pay", "paid", "am paying"], hint: "Instant decision: use 'will'." },
+            { text: "We are out of milk. I ___ some right now.", correct: "will buy", distractors: ["buy", "bought", "am buying"], hint: "Instant decision: use 'will'." },
+            { text: "I like this shirt. I ___ it.", correct: "will take", distractors: ["take", "took", "am taking"], hint: "Instant decision: use 'will'." },
+
+            // --- BLOQUE 3 (21 al 30) ---
+            { text: "I ___ my grandparents next weekend.", correct: "am going to visit", distractors: ["will visit", "visit", "visited"], hint: "Plan: use 'going to'." },
+            { text: "She ___ a new language this year.", correct: "is going to learn", distractors:["will learn", "learns", "learned"], hint: "Plan: use 'going to'." },
+            { text: "We ___ to a bigger house.", correct: "are going to move", distractors:["will move", "move", "moved"], hint: "Plan: use 'going to'." },
+            { text: "They ___ married in December.", correct: "are going to get", distractors:["will get", "get", "got"], hint: "Plan: use 'going to'." },
+            { text: "He ___ his job tomorrow.", correct: "is going to quit", distractors: ["will quit", "quits", "quit"], hint: "Plan: use 'going to'." },
+            { text: "I ___ a cake for her birthday.", correct: "am going to bake", distractors: ["will bake", "bake", "baked"], hint: "Plan: use 'going to'." },
+            { text: "We ___ around the world next summer.", correct: "are going to travel", distractors: ["will travel", "travel", "traveled"], hint: "Plan: use 'going to'." },
+            { text: "Are you ___ the football game tonight?", correct: "going to watch", distractors: ["will watch", "watching", "watched"], hint: "Plan: use 'going to'." },
+            { text: "I ___ my room today.", correct: "am going to clean", distractors: ["will clean", "clean", "cleaned"], hint: "Plan: use 'going to'." },
+            { text: "She ___ to New York for college.", correct: "is going to go", distractors: ["will go", "goes", "went"], hint: "Plan: use 'going to'." },
+
+            // --- BLOQUE 4 (31 al 40) ---
+            { text: "Watch out! You ___.", correct: "are going to fall", distractors: ["will fall", "fall", "fell"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "The boat is full of water! It ___.", correct: "is going to sink", distractors: ["will sink", "sinks", "sank"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "He is running too fast. He ___.", correct: "is going to crash", distractors: ["will crash", "crashes", "crashed"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "The tower is leaning. It ___.", correct: "is going to collapse", distractors: ["will collapse", "collapses", "collapsed"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "She looks very pale. She ___.", correct: "is going to faint", distractors:["will faint", "faints", "fainted"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "We are stuck in traffic. We ___.", correct: "are going to be late", distractors:["will be late", "are late", "were late"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "Look at the time! We ___ the flight.", correct: "are going to miss", distractors:["will miss", "miss", "missed"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "The score is 5-0. They ___.", correct: "are going to win", distractors: ["will win", "win", "won"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "The dog is growling. It ___.", correct: "is going to bite", distractors: ["will bite", "bites", "bit"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "The ice is cracking! You ___.", correct: "are going to drop", distractors: ["will drop", "drop", "dropped"], hint: "Prediction with evidence: use 'going to'." },
+
+            // --- BLOQUE 5 (41 al 50) ---
+            { text: "At 8 PM tonight, I ___ dinner.", correct: "will be eating", distractors:["will eat", "eat", "have eaten"], hint: "Action in progress in the future: Future Continuous." },
+            { text: "This time tomorrow, we ___ to Paris.", correct: "will be flying", distractors:["will fly", "fly", "have flown"], hint: "Action in progress in the future: Future Continuous." },
+            { text: "Don't call me at 9, I ___.", correct: "will be sleeping", distractors: ["will sleep", "sleep", "have slept"], hint: "Action in progress in the future: Future Continuous." },
+            { text: "Next week, they ___ on the beach.", correct: "will be relaxing", distractors: ["will relax", "relax", "have relaxed"], hint: "Action in progress in the future: Future Continuous." },
+            { text: "I ___ for you when you arrive.", correct: "will be waiting", distractors: ["will wait", "wait", "have waited"], hint: "Action in progress in the future: Future Continuous." },
+            { text: "She ___ the presentation at 10 AM.", correct: "will be giving", distractors: ["will give", "gives", "have given"], hint: "Action in progress in the future: Future Continuous." },
+            { text: "At midnight, we ___ the new year.", correct: "will be celebrating", distractors: ["will celebrate", "celebrate", "have celebrated"], hint: "Action in progress in the future: Future Continuous." },
+            { text: "Tomorrow morning, he ___.", correct: "will be working", distractors: ["will work", "works", "have worked"], hint: "Action in progress in the future: Future Continuous." },
+            { text: "They ___ football all afternoon.", correct: "will be playing", distractors: ["will play", "play", "have played"], hint: "Action in progress in the future: Future Continuous." },
+            { text: "I ___ the house when you come over.", correct: "will be cleaning", distractors: ["will clean", "clean", "have cleaned"], hint: "Action in progress in the future: Future Continuous." },
+
+            // --- BLOQUE 6 (51 al 60) ---
+            { text: "By 5 PM, she ___ the report.", correct: "will have written", distractors: ["will write", "writes", "is writing"], hint: "Completed before a future time: Future Perfect." },
+            { text: "They ___ the house by next month.", correct: "will have built", distractors: ["will build", "build", "are building"], hint: "Completed before a future time: Future Perfect." },
+            { text: "By tomorrow, the snow ___.", correct: "will have melted", distractors: ["will melt", "melts", "is melting"], hint: "Completed before a future time: Future Perfect." },
+            { text: "I ___ reading this book by Friday.", correct: "will have finished", distractors: ["will finish", "finish", "am finishing"], hint: "Completed before a future time: Future Perfect." },
+            { text: "By the time you arrive, we ___.", correct: "will have left", distractors: ["will leave", "leave", "are leaving"], hint: "Completed before a future time: Future Perfect." },
+            { text: "He ___ all the cake before the party starts!", correct: "will have eaten", distractors: ["will eat", "eats", "is eating"], hint: "Completed before a future time: Future Perfect." },
+            { text: "By 2030, they ___ a new colony.", correct: "will have established", distractors: ["will establish", "establish", "are establishing"], hint: "Completed before a future time: Future Perfect." },
+            { text: "We ___ the project by the deadline.", correct: "will have completed", distractors: ["will complete", "complete", "are completing"], hint: "Completed before a future time: Future Perfect." },
+            { text: "She ___ 10 miles by noon.", correct: "will have run", distractors: ["will run", "runs", "is running"], hint: "Completed before a future time: Future Perfect." },
+            { text: "By next year, I ___ Spanish perfectly.", correct: "will have learned", distractors: ["will learn", "learns", "am learning"], hint: "Completed before a future time: Future Perfect." },
+
+            // --- BLOQUE 7 (61 al 70) ---
+            { text: "We ___ to Japan next week. Tickets are booked.", correct: "are flying", distractors: ["fly", "flew", "have flown"], hint: "Fixed arrangement: use Present Continuous." },
+            { text: "I ___ the doctor at 3 PM tomorrow.", correct: "am seeing", distractors: ["see", "saw", "have seen"], hint: "Fixed arrangement: use Present Continuous." },
+            { text: "They ___ a party this Saturday.", correct: "are having", distractors: ["have", "had", "have had"], hint: "Fixed arrangement: use Present Continuous." },
+            { text: "He ___ tennis with John tomorrow morning.", correct: "is playing", distractors:["plays", "played", "has played"], hint: "Fixed arrangement: use Present Continuous." },
+            { text: "We ___ dinner at the new restaurant tonight.", correct: "are eating", distractors:["eat", "ate", "have eaten"], hint: "Fixed arrangement: use Present Continuous." },
+            { text: "She ___ tomorrow because it's a holiday.", correct: "isn't working", distractors:["doesn't work", "didn't work", "hasn't worked"], hint: "Fixed arrangement: use Present Continuous." },
+            { text: "Are you ___ anything special this weekend?", correct: "doing", distractors:["do", "did", "done"], hint: "Fixed arrangement: use Present Continuous." },
+            { text: "My parents ___ me next month.", correct: "are visiting", distractors: ["visit", "visited", "have visited"], hint: "Fixed arrangement: use Present Continuous." },
+            { text: "I ___ my friends after school.", correct: "am meeting", distractors: ["meet", "met", "have met"], hint: "Fixed arrangement: use Present Continuous." },
+            { text: "They ___ the new product next week.", correct: "are launching", distractors: ["launch", "launched", "have launched"], hint: "Fixed arrangement: use Present Continuous." },
+
+            // --- BLOQUE 8 (71 al 80) ---
+            { text: "The train ___ at 8:00 AM tomorrow.", correct: "leaves", distractors: ["is leaving", "will leave", "left"], hint: "Timetable/Schedule: use Present Simple." },
+            { text: "The movie ___ at 9:30 PM.", correct: "starts", distractors: ["is starting", "will start", "started"], hint: "Timetable/Schedule: use Present Simple." },
+            { text: "The flight ___ at 6 AM.", correct: "arrives", distractors: ["is arriving", "will arrive", "arrived"], hint: "Timetable/Schedule: use Present Simple." },
+            { text: "The bus ___ every 20 minutes.", correct: "departs", distractors: ["is departing", "will depart", "departed"], hint: "Timetable/Schedule: use Present Simple." },
+            { text: "My classes ___ next Monday.", correct: "begin", distractors: ["are beginning", "will begin", "began"], hint: "Timetable/Schedule: use Present Simple." },
+            { text: "The museum ___ at 10 AM on weekends.", correct: "opens", distractors: ["is opening", "will open", "opened"], hint: "Timetable/Schedule: use Present Simple." },
+            { text: "The supermarket ___ at 9 PM tonight.", correct: "closes", distractors: ["is closing", "will close", "closed"], hint: "Timetable/Schedule: use Present Simple." },
+            { text: "The seminar ___ at 5 PM sharp.", correct: "finishes", distractors: ["is finishing", "will finish", "finished"], hint: "Timetable/Schedule: use Present Simple." },
+            { text: "The next train ___ from platform 3.", correct: "leaves", distractors: ["is leaving", "will leave", "left"], hint: "Timetable/Schedule: use Present Simple." },
+            { text: "The festival ___ on July 1st.", correct: "starts", distractors: ["is starting", "will start", "started"], hint: "Timetable/Schedule: use Present Simple." },
+
+            // --- BLOQUE 9 (81 al 90) ---
+            { text: "I think humans ___ on the moon soon.", correct: "will live", distractors:["are living", "going to live", "lived"], hint: "Prediction: use 'will'." },
+            { text: "I ___ to the gym after work. I have my bag.", correct: "am going to go", distractors:["will go", "go", "went"], hint: "Plan/Intention: use 'going to'." },
+            { text: "I ___ you carry those heavy bags.", correct: "will help", distractors:["am going to help", "help", "helped"], hint: "Instant decision/Offer: use 'will'." },
+            { text: "Look at that guy on the bike! He ___.", correct: "is going to fall", distractors:["will fall", "falls", "fell"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "I'm hungry. I think I ___ a sandwich.", correct: "will make", distractors:["am going to make", "make", "made"], hint: "Instant decision: use 'will'." },
+            { text: "We ___ a baby!", correct: "are going to have", distractors:["will have", "have", "had"], hint: "Plan/Evidence: use 'going to'." },
+            { text: "I ___ you forever.", correct: "will love", distractors: ["am going to love", "love", "loved"], hint: "Promise: use 'will'." },
+            { text: "I ___ the TV, it's too loud.", correct: "will turn off", distractors: ["am turning off", "turn off", "turned off"], hint: "Instant decision: use 'will'." },
+            { text: "She ___ a doctor when she grows up.", correct: "is going to be", distractors: ["will be", "is", "was"], hint: "Plan/Intention: use 'going to'." },
+            { text: "It ___ probably ___ later.", correct: "will snow", distractors: ["is snowing", "snows", "snowed"], hint: "Prediction: use 'will'." },
+
+            // --- BLOQUE 10 (91 al 100) ---
+            { text: "At 7 PM, I ___ my favorite show.", correct: "will be watching", distractors: ["will have watched", "watch", "watched"], hint: "Action in progress: Future Continuous." },
+            { text: "By 7 PM, I ___ my favorite show.", correct: "will have watched", distractors: ["will be watching", "watch", "watched"], hint: "Completed action: Future Perfect." },
+            { text: "This time next week, I ___ on a beach.", correct: "will be lying", distractors: ["will have lain", "lie", "lay"], hint: "Action in progress: Future Continuous." },
+            { text: "By next year, he ___ from college.", correct: "will have graduated", distractors: ["will be graduating", "graduates", "graduated"], hint: "Completed action: Future Perfect." },
+            { text: "I ___ when you come back.", correct: "will be sleeping", distractors:["will have slept", "sleep", "slept"], hint: "Action in progress: Future Continuous." },
+            { text: "By tomorrow, I ___ the whole book.", correct: "will have read", distractors:["will be reading", "read", "reading"], hint: "Completed action: Future Perfect." },
+            { text: "At noon, we ___ lunch.", correct: "will be eating", distractors:["will have eaten", "eat", "ate"], hint: "Action in progress: Future Continuous." },
+            { text: "By noon, we ___ lunch.", correct: "will have eaten", distractors:["will be eating", "eat", "ate"], hint: "Completed action: Future Perfect." },
+            { text: "They ___ for 10 hours by the time they arrive.", correct: "will have driven", distractors:["will be driving", "drive", "drove"], hint: "Completed action: Future Perfect." },
+            { text: "Tomorrow at 10, they ___ in the meeting.", correct: "will be sitting", distractors:["will have sat", "sit", "sat"], hint: "Action in progress: Future Continuous." },
+
+            // --- BLOQUE 11 (101 al 110) ---
+            { text: "The team ___ the championship this year.", correct: "will win", distractors: ["wins", "won", "winning"], hint: "Prediction: use 'will'." },
+            { text: "I think technology ___ all our problems.", correct: "will solve", distractors: ["solves", "solved", "solving"], hint: "Prediction: use 'will'." },
+            { text: "People ___ more in the future.", correct: "will travel", distractors:["travels", "traveled", "traveling"], hint: "Prediction: use 'will'." },
+            { text: "We ___ robots in every home.", correct: "will have", distractors:["has", "had", "having"], hint: "Prediction: use 'will'." },
+            { text: "It ___ a beautiful day tomorrow.", correct: "will be", distractors: ["is", "was", "been"], hint: "Prediction: use 'will'." },
+            { text: "The economy ___ next year.", correct: "will improve", distractors: ["improves", "improved", "improving"], hint: "Prediction: use 'will'." },
+            { text: "Space travel ___ cheaper.", correct: "will become", distractors:["becomes", "became", "becoming"], hint: "Prediction: use 'will'." },
+            { text: "I bet he ___ the answer.", correct: "will know", distractors:["knows", "knew", "knowing"], hint: "Prediction: use 'will'." },
+            { text: "You ___ a great time at the party.", correct: "will have", distractors: ["has", "had", "having"], hint: "Prediction: use 'will'." },
+            { text: "The teacher ___ happy with your homework.", correct: "will be", distractors: ["is", "was", "been"], hint: "Prediction: use 'will'." },
+
+            // --- BLOQUE 12 (111 al 120) ---
+            { text: "I ___ the email right away.", correct: "will send", distractors:["am sending", "send", "sent"], hint: "Instant decision: use 'will'." },
+            { text: "You forgot your umbrella? I ___ you mine.", correct: "will lend", distractors: ["am lending", "lend", "lent"], hint: "Instant decision: use 'will'." },
+            { text: "It's getting dark. I ___ the lights.", correct: "will turn on", distractors:["am turning on", "turn on", "turned on"], hint: "Instant decision: use 'will'." },
+            { text: "We don't have sugar. I ___ to the store.", correct: "will go", distractors:["am going", "go", "went"], hint: "Instant decision: use 'will'." },
+            { text: "Wait here, I ___ back in a minute.", correct: "will be", distractors:["am", "was", "been"], hint: "Instant decision: use 'will'." },
+            { text: "I ___ the doctor for you.", correct: "will call", distractors: ["am calling", "call", "called"], hint: "Instant decision: use 'will'." },
+            { text: "I'll take this jacket. I ___ by card.", correct: "will pay", distractors: ["am paying", "pay", "paid"], hint: "Instant decision: use 'will'." },
+            { text: "I ___ you tomorrow, I promise.", correct: "will call", distractors: ["am calling", "call", "called"], hint: "Promise: use 'will'." },
+            { text: "I ___ the kitchen today.", correct: "will clean", distractors:["am cleaning", "clean", "cleaned"], hint: "Instant decision: use 'will'." },
+            { text: "Someone is knocking. I ___ the door.", correct: "will answer", distractors:["am answering", "answer", "answered"], hint: "Instant decision: use 'will'." },
+
+            // --- BLOQUE 13 (121 al 130) ---
+            { text: "I ___ my guitar tonight.", correct: "am going to practice", distractors: ["will practice", "practice", "practiced"], hint: "Plan: use 'going to'." },
+            { text: "We ___ dinner at home today.", correct: "are going to cook", distractors: ["will cook", "cook", "cooked"], hint: "Plan: use 'going to'." },
+            { text: "They ___ a new business.", correct: "are going to start", distractors: ["will start", "start", "started"], hint: "Plan: use 'going to'." },
+            { text: "She ___ her hair tomorrow.", correct: "is going to cut", distractors: ["will cut", "cuts", "cut"], hint: "Plan: use 'going to'." },
+            { text: "I ___ my car this weekend.", correct: "am going to wash", distractors:["will wash", "wash", "washed"], hint: "Plan: use 'going to'." },
+            { text: "He ___ a letter to his friend.", correct: "is going to write", distractors:["will write", "writes", "wrote"], hint: "Plan: use 'going to'." },
+            { text: "We ___ some old clothes.", correct: "are going to donate", distractors:["will donate", "donate", "donated"], hint: "Plan: use 'going to'." },
+            { text: "Are you ___ a movie tonight?", correct: "going to watch", distractors: ["will watch", "watch", "watched"], hint: "Plan: use 'going to'." },
+            { text: "I ___ to bed early today.", correct: "am going to go", distractors: ["will go", "go", "went"], hint: "Plan: use 'going to'." },
+            { text: "They ___ the park next Sunday.", correct: "are going to visit", distractors: ["will visit", "visit", "visited"], hint: "Plan: use 'going to'." },
+
+            // --- BLOQUE 14 (131 al 140) ---
+            { text: "The engine is making a weird noise. It ___.", correct: "is going to break", distractors: ["will break", "breaks", "broke"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "She hasn't studied at all. She ___.", correct: "is going to fail", distractors: ["will fail", "fails", "failed"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "The wind is very strong. That tree ___.", correct: "is going to fall", distractors: ["will fall", "falls", "fell"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "Look at that traffic jam. We ___.", correct: "are going to be stuck", distractors: ["will be stuck", "are stuck", "were stuck"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "The balloon is too big. It ___.", correct: "is going to pop", distractors:["will pop", "pops", "popped"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "He is carrying too many plates. He ___.", correct: "is going to drop them", distractors:["will drop them", "drops them", "dropped them"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "The sun is setting. It ___.", correct: "is going to be dark", distractors:["will be dark", "is dark", "was dark"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "The bridge is shaking! It ___.", correct: "is going to collapse", distractors:["will collapse", "collapses", "collapsed"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "He is exhausted. He ___.", correct: "is going to sleep well", distractors:["will sleep well", "sleeps well", "slept well"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "They bought 10 pizzas. They ___.", correct: "are going to eat a lot", distractors: ["will eat a lot", "eat a lot", "ate a lot"], hint: "Prediction with evidence: use 'going to'." },
+
+            // --- BLOQUE 15 (141 al 150) ---
+            { text: "Next Monday, I ___ a new project.", correct: "will be starting", distractors: ["will start", "start", "have started"], hint: "Action in progress: Future Continuous." },
+            { text: "At 3 PM, she ___ a meeting.", correct: "will be attending", distractors: ["will attend", "attends", "have attended"], hint: "Action in progress: Future Continuous." },
+            { text: "They ___ to the radio on their way home.", correct: "will be listening", distractors: ["will listen", "listen", "have listened"], hint: "Action in progress: Future Continuous." },
+            { text: "I ___ over the mountains this time tomorrow.", correct: "will be flying", distractors: ["will fly", "fly", "have flown"], hint: "Action in progress: Future Continuous." },
+            { text: "He ___ for his exam all night.", correct: "will be studying", distractors:["will study", "studies", "have studied"], hint: "Action in progress: Future Continuous." },
+            { text: "We ___ video games when you arrive.", correct: "will be playing", distractors:["will play", "play", "have played"], hint: "Action in progress: Future Continuous." },
+            { text: "Tomorrow evening, I ___ a book.", correct: "will be reading", distractors: ["will read", "reads", "have read"], hint: "Action in progress: Future Continuous." },
+            { text: "They ___ a song at the concert.", correct: "will be singing", distractors: ["will sing", "sings", "have sung"], hint: "Action in progress: Future Continuous." },
+            { text: "At this time next year, I ___ in London.", correct: "will be living", distractors: ["will live", "lives", "have lived"], hint: "Action in progress: Future Continuous." },
+            { text: "She ___ in the marathon tomorrow.", correct: "will be running", distractors: ["will run", "runs", "have run"], hint: "Action in progress: Future Continuous." },
+
+            // --- BLOQUE 16 (151 al 160) ---
+            { text: "By 8 PM, I ___ all my chores.", correct: "will have finished", distractors: ["will finish", "finishes", "am finishing"], hint: "Completed action: Future Perfect." },
+            { text: "She ___ the painting by Friday.", correct: "will have completed", distractors:["will complete", "completes", "is completing"], hint: "Completed action: Future Perfect." },
+            { text: "They ___ the mystery by the end of the movie.", correct: "will have solved", distractors: ["will solve", "solves", "are solving"], hint: "Completed action: Future Perfect." },
+            { text: "By tomorrow morning, the storm ___.", correct: "will have passed", distractors:["will pass", "passes", "is passing"], hint: "Completed action: Future Perfect." },
+            { text: "I ___ my goal by December.", correct: "will have reached", distractors:["will reach", "reaches", "am reaching"], hint: "Completed action: Future Perfect." },
+            { text: "By the time he wakes up, we ___.", correct: "will have left", distractors:["will leave", "leaves", "are leaving"], hint: "Completed action: Future Perfect." },
+            { text: "She ___ dinner before we get home.", correct: "will have cooked", distractors: ["will cook", "cooks", "is cooking"], hint: "Completed action: Future Perfect." },
+            { text: "They ___ the bridge by next year.", correct: "will have repaired", distractors: ["will repair", "repairs", "are repairing"], hint: "Completed action: Future Perfect." },
+            { text: "We ___ all the money by the weekend.", correct: "will have spent", distractors: ["will spend", "spends", "are spending"], hint: "Completed action: Future Perfect." },
+            { text: "By midnight, I ___ 50 pages.", correct: "will have typed", distractors: ["will type", "types", "am typing"], hint: "Completed action: Future Perfect." },
+
+            // --- BLOQUE 17 (161 al 170) ---
+            { text: "I ___ a haircut tomorrow morning.", correct: "am getting", distractors:["get", "got", "have got"], hint: "Fixed arrangement: Present Continuous." },
+            { text: "We ___ friends over for dinner tonight.", correct: "are having", distractors:["have", "had", "have had"], hint: "Fixed arrangement: Present Continuous." },
+            { text: "They ___ to a new house next week.", correct: "are moving", distractors: ["move", "moved", "have moved"], hint: "Fixed arrangement: Present Continuous." },
+            { text: "He ___ the dentist at 4 PM.", correct: "is seeing", distractors: ["sees", "saw", "has seen"], hint: "Fixed arrangement: Present Continuous." },
+            { text: "I ___ my laptop to the repair shop today.", correct: "am taking", distractors: ["take", "took", "have taken"], hint: "Fixed arrangement: Present Continuous." },
+            { text: "She ___ her new dress to the party.", correct: "is wearing", distractors:["wears", "wore", "has worn"], hint: "Fixed arrangement: Present Continuous." },
+            { text: "We ___ the new museum exhibit tomorrow.", correct: "are visiting", distractors:["visit", "visited", "have visited"], hint: "Fixed arrangement: Present Continuous." },
+            { text: "They ___ the final match on Sunday.", correct: "are playing", distractors: ["play", "played", "have played"], hint: "Fixed arrangement: Present Continuous." },
+            { text: "I ___ early tomorrow.", correct: "am leaving", distractors: ["leave", "left", "have left"], hint: "Fixed arrangement: Present Continuous." },
+            { text: "He ___ a speech at the conference.", correct: "is giving", distractors: ["gives", "gave", "has given"], hint: "Fixed arrangement: Present Continuous." },
+
+            // --- BLOQUE 18 (171 al 180) ---
+            { text: "The match ___ at 8 PM tonight.", correct: "kicks off", distractors:["is kicking off", "will kick off", "kicked off"], hint: "Timetable: Present Simple." },
+            { text: "The semester ___ on September 1st.", correct: "starts", distractors:["is starting", "will start", "started"], hint: "Timetable: Present Simple." },
+            { text: "The train to London ___ at 10:15.", correct: "departs", distractors:["is departing", "will depart", "departed"], hint: "Timetable: Present Simple." },
+            { text: "The library ___ at 6 PM today.", correct: "closes", distractors:["is closing", "will close", "closed"], hint: "Timetable: Present Simple." },
+            { text: "The movie ___ at 7 PM.", correct: "begins", distractors: ["is beginning", "will begin", "began"], hint: "Timetable: Present Simple." },
+            { text: "The flight ___ at terminal 2.", correct: "arrives", distractors: ["is arriving", "will arrive", "arrived"], hint: "Timetable: Present Simple." },
+            { text: "The store ___ at 8 AM tomorrow.", correct: "opens", distractors: ["is opening", "will open", "opened"], hint: "Timetable: Present Simple." },
+            { text: "The English class ___ at 9 AM.", correct: "starts", distractors: ["is starting", "will start", "started"], hint: "Timetable: Present Simple." },
+            { text: "The next bus ___ in 10 minutes.", correct: "arrives", distractors:["is arriving", "will arrive", "arrived"], hint: "Timetable: Present Simple." },
+            { text: "The concert ___ at midnight.", correct: "ends", distractors:["is ending", "will end", "ended"], hint: "Timetable: Present Simple." },
+
+            // --- BLOQUE 19 (181 al 190) ---
+            { text: "A: We have no bread. B: Oh, I ___ to the bakery!", correct: "will go", distractors:["am going to go", "go", "went"], hint: "Instant decision: use 'will'." },
+            { text: "A: We have no bread. B: I know, I ___ to the bakery later.", correct: "am going to go", distractors: ["will go", "go", "went"], hint: "Plan already made: use 'going to'." },
+            { text: "A: The phone is ringing. B: I ___ it!", correct: "will answer", distractors: ["am going to answer", "answer", "answered"], hint: "Instant decision: use 'will'." },
+            { text: "A: Why are you holding a hammer? B: I ___ a picture.", correct: "am going to hang", distractors: ["will hang", "hang", "hung"], hint: "Plan/Intention: use 'going to'." },
+            { text: "A: I can't open this jar. B: Give it to me, I ___ it.", correct: "will open", distractors: ["am going to open", "open", "opened"], hint: "Instant decision: use 'will'." },
+            { text: "Look at those prices! This ___ expensive.", correct: "is going to be", distractors: ["will be", "is", "was"], hint: "Prediction with evidence: use 'going to'." },
+            { text: "I don't think he ___ the truth.", correct: "will tell", distractors: ["is going to tell", "tells", "told"], hint: "Prediction without evidence: use 'will'." },
+            { text: "A: It's my birthday tomorrow! B: Really? I ___ you a gift!", correct: "will buy", distractors:["am going to buy", "buy", "bought"], hint: "Instant decision: use 'will'." },
+            { text: "She bought a lot of flour. She ___ bread.", correct: "is going to bake", distractors: ["will bake", "bakes", "baked"], hint: "Plan/Intention: use 'going to'." },
+            { text: "I promise I ___ you the money back.", correct: "will pay", distractors: ["am going to pay", "pay", "paid"], hint: "Promise: use 'will'." },
+
+            // --- BLOQUE 20 (191 al 200) ---
+            { text: "This time tomorrow, they ___ in the pool.", correct: "will be swimming", distractors: ["will have swum", "swim", "swam"], hint: "Action in progress: Future Continuous." },
+            { text: "By the end of the day, I ___ 5 miles.", correct: "will have swum", distractors: ["will be swimming", "swim", "swam"], hint: "Completed action: Future Perfect." },
+            { text: "At 9 AM, the chef ___ the ingredients.", correct: "will be chopping", distractors: ["will have chopped", "chop", "chopped"], hint: "Action in progress: Future Continuous." },
+            { text: "By 10 AM, the chef ___ the soup.", correct: "will have finished", distractors:["will be finishing", "finish", "finished"], hint: "Completed action: Future Perfect." },
+            { text: "Don't call at 8, we ___ dinner.", correct: "will be having", distractors:["will have had", "have", "had"], hint: "Action in progress: Future Continuous." },
+            { text: "Call me at 9, we ___ dinner by then.", correct: "will have finished", distractors:["will be finishing", "finish", "finished"], hint: "Completed action: Future Perfect." },
+            { text: "Next year, I ___ in a new office.", correct: "will be working", distractors:["will have worked", "work", "worked"], hint: "Action in progress: Future Continuous." },
+            { text: "By next year, I ___ 5 years in this company.", correct: "will have worked", distractors:["will be working", "work", "worked"], hint: "Completed action: Future Perfect." },
+            { text: "Tomorrow morning, birds ___.", correct: "will be singing", distractors: ["will have sung", "sing", "sang"], hint: "Action in progress: Future Continuous." },
+            { text: "By tomorrow, the snow ___.", correct: "will have disappeared", distractors: ["will be disappearing", "disappear", "disappeared"], hint: "Completed action: Future Perfect." },
+
+            // --- BLOQUE 21 (201 al 210) ---
+            { text: "I ___ a doctor when I finish university.", correct: "am going to be", distractors: ["will be", "am", "was"], hint: "Plan: use 'going to'." },
+            { text: "I think he ___ a great president.", correct: "will be", distractors:["is going to be", "is", "was"], hint: "Prediction: use 'will'." },
+            { text: "He ___ study hard for the test.", correct: "is going to", distractors:["will", "is", "was"], hint: "Intention: use 'going to'." },
+            { text: "I'm cold. I ___ my jacket.", correct: "will put on", distractors:["am going to put on", "put on", "puts on"], hint: "Instant decision: use 'will'." },
+            { text: "They ___ married next year.", correct: "are going to get", distractors: ["will get", "get", "got"], hint: "Plan: use 'going to'." },
+            { text: "Look! He ___ into the water!", correct: "is going to jump", distractors: ["will jump", "jumps", "jumped"], hint: "Evidence: use 'going to'." },
+            { text: "I ___ always remember you.", correct: "will", distractors: ["am going to", "do", "did"], hint: "Promise: use 'will'." },
+            { text: "We ___ a party on Friday.", correct: "are going to have", distractors:["will have", "have", "had"], hint: "Plan: use 'going to'." },
+            { text: "I don't think it ___ rain tomorrow.", correct: "will", distractors:["is going to", "does", "did"], hint: "Prediction: use 'will'." },
+            { text: "Watch out! The glass ___ fall!", correct: "is going to", distractors: ["will", "does", "did"], hint: "Evidence: use 'going to'." },
+
+            // --- BLOQUE 22 (211 al 220) ---
+            { text: "Next week, I ___ a new course.", correct: "am starting", distractors: ["start", "started", "have started"], hint: "Arrangement: Present Continuous." },
+            { text: "The bus ___ at 10 AM.", correct: "leaves", distractors:["is leaving", "will leave", "left"], hint: "Timetable: Present Simple." },
+            { text: "By 2025, I ___ a lot of places.", correct: "will have visited", distractors: ["will visit", "visit", "am visiting"], hint: "Completed action: Future Perfect." },
+            { text: "At 8 PM, I ___ my homework.", correct: "will be doing", distractors:["will do", "do", "have done"], hint: "Action in progress: Future Continuous." },
+            { text: "I ___ you with that box.", correct: "will help", distractors: ["am going to help", "help", "helped"], hint: "Offer: use 'will'." },
+            { text: "They ___ to Italy for their honeymoon.", correct: "are flying", distractors: ["fly", "flew", "have flown"], hint: "Arrangement: Present Continuous." },
+            { text: "She ___ buy a new laptop.", correct: "is going to", distractors: ["will", "does", "did"], hint: "Plan: use 'going to'." },
+            { text: "I'm sure you ___ enjoy the movie.", correct: "will", distractors: ["are going to", "do", "did"], hint: "Prediction: use 'will'." },
+            { text: "The movie ___ at 7 PM sharp.", correct: "begins", distractors:["is beginning", "will begin", "began"], hint: "Timetable: Present Simple." },
+            { text: "By tomorrow, the package ___.", correct: "will have arrived", distractors:["will arrive", "arrives", "is arriving"], hint: "Completed action: Future Perfect." },
+
+            // --- BLOQUE 23 (221 al 230) ---
+            { text: "He ___ play tennis tomorrow.", correct: "is playing", distractors: ["plays", "played", "has played"], hint: "Arrangement: Present Continuous." },
+            { text: "I ___ you a secret, but don't tell anyone.", correct: "will tell", distractors: ["am going to tell", "tell", "told"], hint: "Promise: use 'will'." },
+            { text: "The sky is very dark. It ___ a storm.", correct: "is going to be", distractors: ["will be", "is", "was"], hint: "Evidence: use 'going to'." },
+            { text: "By the end of the week, we ___ the project.", correct: "will have finished", distractors: ["will finish", "finish", "are finishing"], hint: "Completed action: Future Perfect." },
+            { text: "This time next month, we ___ in Spain.", correct: "will be relaxing", distractors: ["will relax", "relax", "have relaxed"], hint: "Action in progress: Future Continuous." },
+            { text: "I ___ make some tea. Do you want some?", correct: "will", distractors: ["am going to", "do", "did"], hint: "Instant decision: use 'will'." },
+            { text: "My parents ___ me tonight.", correct: "are visiting", distractors:["visit", "visited", "have visited"], hint: "Arrangement: Present Continuous." },
+            { text: "The train ___ at 6:30 AM.", correct: "departs", distractors:["is departing", "will depart", "departed"], hint: "Timetable: Present Simple." },
+            { text: "I think robots ___ all the work in the future.", correct: "will do", distractors:["are going to do", "do", "did"], hint: "Prediction: use 'will'." },
+            { text: "She ___ study biology at university.", correct: "is going to", distractors: ["will", "does", "did"], hint: "Plan: use 'going to'." },
+
+            // --- BLOQUE 24 (231 al 240) ---
+            { text: "A: I'm really tired. B: I ___ drive if you want.", correct: "will", distractors: ["am going to", "do", "did"], hint: "Offer: use 'will'." },
+            { text: "He ___ fall! Watch out!", correct: "is going to", distractors: ["will", "does", "did"], hint: "Evidence: use 'going to'." },
+            { text: "We ___ to the concert next Saturday.", correct: "are going", distractors: ["go", "went", "have gone"], hint: "Arrangement: Present Continuous." },
+            { text: "By next month, she ___ 5 kilos.", correct: "will have lost", distractors: ["will lose", "loses", "is losing"], hint: "Completed action: Future Perfect." },
+            { text: "At 10 AM tomorrow, I ___ an exam.", correct: "will be taking", distractors: ["will take", "take", "have taken"], hint: "Action in progress: Future Continuous." },
+            { text: "The exhibition ___ on October 1st.", correct: "opens", distractors: ["is opening", "will open", "opened"], hint: "Timetable: Present Simple." },
+            { text: "I ___ order a pizza.", correct: "will", distractors:["am going to", "do", "did"], hint: "Instant decision: use 'will'." },
+            { text: "They ___ a new car soon.", correct: "are going to buy", distractors:["will buy", "buy", "bought"], hint: "Plan: use 'going to'." },
+            { text: "I am sure they ___ win the game.", correct: "will", distractors: ["are going to", "do", "did"], hint: "Prediction: use 'will'." },
+            { text: "I ___ meet John at the station.", correct: "am meeting", distractors: ["meet", "met", "have met"], hint: "Arrangement: Present Continuous." },
+
+            // --- BLOQUE 25 (241 al 250) ---
+            { text: "The play ___ at 8 PM.", correct: "starts", distractors:["is starting", "will start", "started"], hint: "Timetable: Present Simple." },
+            { text: "By the end of the year, I ___ $1000.", correct: "will have saved", distractors: ["will save", "saves", "am saving"], hint: "Completed action: Future Perfect." },
+            { text: "This time tomorrow, she ___ to New York.", correct: "will be traveling", distractors:["will travel", "travels", "have traveled"], hint: "Action in progress: Future Continuous." },
+            { text: "Oh, I dropped my keys. I ___ get them.", correct: "will", distractors: ["am going to", "do", "did"], hint: "Instant decision: use 'will'." },
+            { text: "Look at those boys playing near the edge! They ___ fall.", correct: "are going to", distractors: ["will", "do", "did"], hint: "Evidence: use 'going to'." },
+            { text: "I ___ a doctor tomorrow at 4 PM.", correct: "am seeing", distractors: ["see", "saw", "have seen"], hint: "Arrangement: Present Continuous." },
+            { text: "I think it ___ a great party.", correct: "will be", distractors:["is going to be", "is", "was"], hint: "Prediction: use 'will'." },
+            { text: "She ___ start a new business.", correct: "is going to", distractors:["will", "does", "did"], hint: "Plan: use 'going to'." },
+            { text: "We ___ dinner when you arrive.", correct: "will be having", distractors: ["will have", "have", "had"], hint: "Action in progress: Future Continuous." },
+            { text: "The class ___ at 9 AM.", correct: "begins", distractors: ["is beginning", "will begin", "began"], hint: "Timetable: Present Simple." },
+
+            // --- BLOQUE 26 (251 al 260) ---
+            { text: "By 2030, we ___ a cure.", correct: "will have found", distractors: ["will find", "find", "are finding"], hint: "Completed action: Future Perfect." },
+            { text: "Next year, I ___ my own house.", correct: "will have bought", distractors: ["will buy", "buy", "am buying"], hint: "Completed action: Future Perfect." },
+            { text: "I ___ you a message when I arrive.", correct: "will send", distractors: ["am going to send", "send", "sent"], hint: "Promise/Decision: use 'will'." },
+            { text: "They ___ stay at home tonight.", correct: "are going to", distractors:["will", "do", "did"], hint: "Plan: use 'going to'." },
+            { text: "Watch out! The ladder ___ slip!", correct: "is going to", distractors: ["will", "does", "did"], hint: "Evidence: use 'going to'." },
+            { text: "At midnight, we ___ fireworks.", correct: "will be watching", distractors: ["will watch", "watch", "have watched"], hint: "Action in progress: Future Continuous." },
+            { text: "The store ___ at 10 PM.", correct: "closes", distractors: ["is closing", "will close", "closed"], hint: "Timetable: Present Simple." },
+            { text: "I ___ flying to Tokyo next Monday.", correct: "am", distractors: ["will", "do", "have"], hint: "Arrangement: Present Continuous." },
+            { text: "I believe the team ___ perform better.", correct: "will", distractors: ["is going to", "does", "did"], hint: "Prediction: use 'will'." },
+            { text: "He ___ join the gym next month.", correct: "is going to", distractors: ["will", "does", "did"], hint: "Plan: use 'going to'." },
+
+            // --- BLOQUE 27 (261 al 267) ---
+            { text: "I ___ the email for you.", correct: "will type", distractors:["am going to type", "type", "typed"], hint: "Offer: use 'will'." },
+            { text: "By the time you get here, I ___ dinner.", correct: "will have made", distractors:["will make", "make", "am making"], hint: "Completed action: Future Perfect." },
+            { text: "This time next year, I ___ a new car.", correct: "will be driving", distractors:["will drive", "drive", "have driven"], hint: "Action in progress: Future Continuous." },
+            { text: "They ___ a test tomorrow morning.", correct: "are taking", distractors:["take", "took", "have taken"], hint: "Arrangement: Present Continuous." },
+            { text: "The meeting ___ at 11 AM.", correct: "starts", distractors: ["is starting", "will start", "started"], hint: "Timetable: Present Simple." },
+            { text: "Look out! That dog ___ bite you!", correct: "is going to", distractors: ["will", "does", "did"], hint: "Evidence: use 'going to'." },
+            { text: "I ___ a book this weekend.", correct: "am going to read", distractors: ["will read", "read", "readed"], hint: "Plan: use 'going to'." }
+        ];
+        // CAPTURA DE IP
         async function fetchUserIP() {
             try {
                 const res = await fetch("https://api.ipify.org?format=json");
@@ -294,25 +610,43 @@
         }
         fetchUserIP();
 
-        // Cargar nombres de la base de datos
+        // MANEJO DE OFFLINE
+        function enableOfflineInputs(inputEl, dniEl) {
+            namesFailed = true; // Activa el modo de nombre libre
+            inputEl.placeholder = "Enter your name (Free text mode)...";
+            inputEl.disabled = false;
+            dniEl.disabled = false;
+            document.getElementById('offline-badge').classList.remove('hidden');
+        }
+
+        // CARGA DE NOMBRES CON FALLBACK ROBUSTO
         async function fetchStudentNames() {
-            if (!_0xUrl || _0xUrl.trim() === "") return;
             const inputEl = document.getElementById('player-name');
             const dniEl = document.getElementById('player-dni');
+
+            if (!_0xUrl || _0xUrl.trim() === "") {
+                enableOfflineInputs(inputEl, dniEl);
+                return;
+            }
+
             try {
                 const response = await fetch(_0xUrl + "?action=getNames");
                 const names = await response.json();
+                
                 if (Array.isArray(names)) {
                     originalAllowedNames = names.map(n => n.trim());
                     allowedNames = names.map(n => n.toLowerCase().trim());
                     
                     inputEl.placeholder = "Enter your name to start...";
                     inputEl.disabled = false;
-                    dniEl.disabled = false; // Habilitamos DNI
+                    dniEl.disabled = false; 
                     updateLeaderboardUI();
+                } else {
+                    throw new Error("Formato inválido devuelto por el servidor.");
                 }
             } catch (e) {
-                inputEl.placeholder = "Failed to load names.";
+                console.warn("Fallo al cargar los nombres. Activando modo libre.", e);
+                enableOfflineInputs(inputEl, dniEl); // Si falla, desbloquea los inputs
             }
         }
         fetchStudentNames();
@@ -400,20 +734,31 @@
             const btnText = document.getElementById('btn-start-text');
             const btn = document.getElementById('btn-start');
 
-            if (allowedNames.length === 0) {
+            // --- VALIDACIÓN DE NOMBRE MEJORADA ---
+            // Si no cargaron aún pero tampoco fallaron
+            if (allowedNames.length === 0 && !namesFailed) {
                 errorEl.innerText = "Please wait, names loading...";
                 errorEl.classList.remove('hidden');
                 return;
             }
             
-            // Validación de Nombre
-            if (!playerName || !allowedNames.includes(playerName.toLowerCase())) {
-                errorEl.innerText = "Please select a valid name from the list.";
-                errorEl.classList.remove('hidden');
-                return;
+            // Si se cargaron correctamente desde la base de datos
+            if (allowedNames.length > 0) {
+                if (!playerName || !allowedNames.includes(playerName.toLowerCase())) {
+                    errorEl.innerText = "Please select a valid name from the list.";
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+            } else {
+                // Si la carga falló (namesFailed == true), permitimos texto libre
+                if (!playerName || playerName.length < 2) {
+                    errorEl.innerText = "Please enter a valid name to continue.";
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
             }
 
-            // Validación de DNI (Asegurar que sean 8 dígitos numéricos)
+            // --- VALIDACIÓN DNI ---
             if (!playerDNI || playerDNI.length !== 8) {
                 errorEl.innerText = "Please enter a valid DNI (exactly 8 digits).";
                 errorEl.classList.remove('hidden');
@@ -423,6 +768,7 @@
             errorEl.classList.add('hidden');
             suggestionsEl.classList.add('hidden');
 
+            // --- CONEXIÓN DE SESIÓN ---
             if (_0xUrl && _0xUrl.trim() !== "") {
                 btnText.innerText = "Connecting...";
                 btn.classList.add("opacity-50", "pointer-events-none");
@@ -432,11 +778,10 @@
                     if(data.error) throw new Error(data.error);
                     serverSessionToken = data.token;
                 } catch(err) {
-                    btnText.innerText = "Start Learning";
-                    btn.classList.remove("opacity-50", "pointer-events-none");
-                    errorEl.innerText = "Connection failed. Play offline mode.";
-                    errorEl.classList.remove('hidden');
-                    return; 
+                    console.warn("Fallo al iniciar sesión en el servidor. Jugando offline.");
+                    document.getElementById('offline-badge').classList.remove('hidden');
+                    serverSessionToken = "offline_mode";
+                    // Eliminado el return; que bloqueaba el inicio del juego
                 }
             }
             
@@ -594,12 +939,11 @@
             window.switchScreen('gameover-screen');
             speak("Game Over.");
 
-            // 3. ARMADO DEL REPORTE INCLUYENDO DNI E IP
             const newRecord = {
                 name: playerName || "Unknown",
                 dni: playerDNI || "00000000",
                 score: Number(score),
-                ip: userIP, // Aquí se manda la IP capturada con ipify
+                ip: userIP, 
                 sessionToken: serverSessionToken 
             };
 
