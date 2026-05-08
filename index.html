@@ -947,12 +947,31 @@
                 sessionToken: serverSessionToken 
             };
 
+            // 1. Inyectar el récord localmente al instante para que el jugador lo vea sin esperar
+            fallbackLocalSave(newRecord);
+
+            // 2. Enviar los datos al servidor en segundo plano
             if (_0xUrl && _0xUrl.trim() !== "") {
                 try {
-                    await fetch(_0xUrl, { method: 'POST', body: JSON.stringify(newRecord) });
-                    fetchLeaderboardData(); 
-                } catch (e) { fallbackLocalSave(newRecord); }
-            } else { fallbackLocalSave(newRecord); }
+                    await fetch(_0xUrl, { 
+                        method: 'POST', 
+                        mode: 'no-cors', // Evita el bloqueo de CORS del navegador
+                        headers: {
+                            'Content-Type': 'text/plain;charset=utf-8' // Formato seguro para Apps Script
+                        },
+                        body: JSON.stringify(newRecord) 
+                    });
+                    
+                    // 3. Esperar 2 segundos para que Google Sheets termine de escribir la fila 
+                    // y luego descargar la tabla actualizada real.
+                    setTimeout(() => {
+                        fetchLeaderboardData(); 
+                    }, 2000);
+
+                } catch (e) { 
+                    console.error("Error guardando en el servidor:", e);
+                }
+            }
         }
 
         function fallbackLocalSave(newRecord) {
