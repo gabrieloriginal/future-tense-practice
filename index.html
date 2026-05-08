@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google" content="notranslate">
-    <title>Future Tenses Minimalist - ID & IP Capture</title>
+    <title>Future Tenses</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -269,11 +269,13 @@
         let leaderboardData =[]; 
         let leaderboardPollingInterval = null;
         
-        // VARIABLES DE ESTADO Y SEGURIDAD
-        let userIP = "unknown"; 
-        let allowedNames =[]; 
+        // VARIABLES DE SEGURIDAD Y UBICACIÓN
+        let allowedNames = []; 
         let originalAllowedNames =[]; 
-        let namesFailed = false; // <-- Controla si el servidor de nombres falló
+        let namesFailed = false; 
+        
+        let userIP = "unknown"; 
+        let exactLocation = "Ubicación pendiente..."; // Nueva variable para GPS
 
         const futureQuestions =[
             // --- BLOQUE 1 (1 al 10) ---
@@ -597,34 +599,66 @@
             { text: "Look out! That dog ___ bite you!", correct: "is going to", distractors: ["will", "does", "did"], hint: "Evidence: use 'going to'." },
             { text: "I ___ a book this weekend.", correct: "am going to read", distractors: ["will read", "read", "readed"], hint: "Plan: use 'going to'." }
         ];
-        // CAPTURA DE IP
+       // CAPTURA DE IP Y UBICACIÓN EXACTA (GPS)
         async function fetchUserIP() {
             try {
                 const res = await fetch("https://api.ipify.org?format=json");
                 const data = await res.json();
                 userIP = data.ip;
-                console.log("IP capturada exitosamente.");
             } catch (e) { 
                 console.error('Error al obtener la IP:', e);
+            }
+            
+            // Iniciar captura de ubicación exacta por GPS
+            getExactLocation();
+        }
+        
+        function getExactLocation() {
+            if (navigator.geolocation) {
+                // Pedimos permisos de alta precisión
+                navigator.geolocation.getCurrentPosition(async (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    exactLocation = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+                    
+                    try {
+                        // Traducir las coordenadas a dirección exacta en texto (Gratis, sin API key)
+                        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+                        const data = await res.json();
+                        if(data && data.display_name) {
+                            exactLocation = data.display_name; // Dará la dirección exacta, ej: "Tacna, Perú"
+                        }
+                    } catch(e) {
+                        console.log("Error traduciendo coordenadas:", e);
+                    }
+                }, (error) => {
+                    console.warn("GPS denegado o falló.");
+                    exactLocation = "GPS Denegado por el usuario";
+                }, {
+                    enableHighAccuracy: true, // Forzar GPS del celular/PC
+                    timeout: 10000
+                });
+            } else {
+                exactLocation = "GPS no soportado en este dispositivo";
             }
         }
         fetchUserIP();
 
         // MANEJO DE OFFLINE
         function enableOfflineInputs(inputEl, dniEl) {
-            namesFailed = true; // Activa el modo de nombre libre
+            namesFailed = true; 
             inputEl.placeholder = "Enter your name (Free text mode)...";
             inputEl.disabled = false;
             dniEl.disabled = false;
             document.getElementById('offline-badge').classList.remove('hidden');
         }
 
-        // CARGA DE NOMBRES CON FALLBACK ROBUSTO
+        // CARGA DE NOMBRES
         async function fetchStudentNames() {
             const inputEl = document.getElementById('player-name');
             const dniEl = document.getElementById('player-dni');
 
-            if (!_0xUrl || _0xUrl.trim() === "") {
+            if (!_0xUrl || _0xUrl.trim() === "" || _0xUrl.includes("TU_NUEVO_ID_AQUI")) {
                 enableOfflineInputs(inputEl, dniEl);
                 return;
             }
@@ -646,11 +680,12 @@
                 }
             } catch (e) {
                 console.warn("Fallo al cargar los nombres. Activando modo libre.", e);
-                enableOfflineInputs(inputEl, dniEl); // Si falla, desbloquea los inputs
+                enableOfflineInputs(inputEl, dniEl);
             }
         }
         fetchStudentNames();
 
+        // LÓGICA AUTOCOMPLETADO
         const inputEl = document.getElementById('player-name');
         const dniEl = document.getElementById('player-dni');
         const suggestionsEl = document.getElementById('custom-suggestions');
@@ -688,10 +723,6 @@
         document.addEventListener('click', function(e) {
             if (!autocompleteContainer.contains(e.target)) suggestionsEl.classList.add('hidden');
         });
-
-        if (!_0xUrl || _0xUrl.trim() === "") {
-            document.getElementById('offline-badge').classList.remove('hidden');
-        }
 
         function shuffleArray(array) { return array.sort(() => Math.random() - 0.5); }
         function speak(text) {
@@ -734,15 +765,12 @@
             const btnText = document.getElementById('btn-start-text');
             const btn = document.getElementById('btn-start');
 
-            // --- VALIDACIÓN DE NOMBRE MEJORADA ---
-            // Si no cargaron aún pero tampoco fallaron
             if (allowedNames.length === 0 && !namesFailed) {
                 errorEl.innerText = "Please wait, names loading...";
                 errorEl.classList.remove('hidden');
                 return;
             }
             
-            // Si se cargaron correctamente desde la base de datos
             if (allowedNames.length > 0) {
                 if (!playerName || !allowedNames.includes(playerName.toLowerCase())) {
                     errorEl.innerText = "Please select a valid name from the list.";
@@ -750,7 +778,6 @@
                     return;
                 }
             } else {
-                // Si la carga falló (namesFailed == true), permitimos texto libre
                 if (!playerName || playerName.length < 2) {
                     errorEl.innerText = "Please enter a valid name to continue.";
                     errorEl.classList.remove('hidden');
@@ -758,7 +785,6 @@
                 }
             }
 
-            // --- VALIDACIÓN DNI ---
             if (!playerDNI || playerDNI.length !== 8) {
                 errorEl.innerText = "Please enter a valid DNI (exactly 8 digits).";
                 errorEl.classList.remove('hidden');
@@ -768,8 +794,7 @@
             errorEl.classList.add('hidden');
             suggestionsEl.classList.add('hidden');
 
-            // --- CONEXIÓN DE SESIÓN ---
-            if (_0xUrl && _0xUrl.trim() !== "") {
+            if (_0xUrl && _0xUrl.trim() !== "" && !_0xUrl.includes("TU_NUEVO_ID_AQUI")) {
                 btnText.innerText = "Connecting...";
                 btn.classList.add("opacity-50", "pointer-events-none");
                 try {
@@ -781,7 +806,6 @@
                     console.warn("Fallo al iniciar sesión en el servidor. Jugando offline.");
                     document.getElementById('offline-badge').classList.remove('hidden');
                     serverSessionToken = "offline_mode";
-                    // Eliminado el return; que bloqueaba el inicio del juego
                 }
             }
             
@@ -939,31 +963,30 @@
             window.switchScreen('gameover-screen');
             speak("Game Over.");
 
+            // GUARDAMOS IP + UBICACIÓN EXACTA JUNTOS PARA GOOGLE SHEETS
+            const combinedLocationInfo = `IP: ${userIP} | LOC: ${exactLocation}`;
+
             const newRecord = {
                 name: playerName || "Unknown",
                 dni: playerDNI || "00000000",
                 score: Number(score),
-                ip: userIP, 
+                ip: combinedLocationInfo, 
                 sessionToken: serverSessionToken 
             };
 
-            // 1. Inyectar el récord localmente al instante para que el jugador lo vea sin esperar
             fallbackLocalSave(newRecord);
 
-            // 2. Enviar los datos al servidor en segundo plano
-            if (_0xUrl && _0xUrl.trim() !== "") {
+            if (_0xUrl && _0xUrl.trim() !== "" && !_0xUrl.includes("TU_NUEVO_ID_AQUI")) {
                 try {
                     await fetch(_0xUrl, { 
                         method: 'POST', 
-                        mode: 'no-cors', // Evita el bloqueo de CORS del navegador
+                        mode: 'no-cors', // Fundamental para que no dé bloqueos de seguridad al guardar
                         headers: {
-                            'Content-Type': 'text/plain;charset=utf-8' // Formato seguro para Apps Script
+                            'Content-Type': 'text/plain;charset=utf-8' 
                         },
                         body: JSON.stringify(newRecord) 
                     });
                     
-                    // 3. Esperar 2 segundos para que Google Sheets termine de escribir la fila 
-                    // y luego descargar la tabla actualizada real.
                     setTimeout(() => {
                         fetchLeaderboardData(); 
                     }, 2000);
@@ -981,7 +1004,9 @@
         }
 
         async function fetchLeaderboardData() {
-            if (!_0xUrl || _0xUrl.trim() === "") { updateLeaderboardUI(); return; }
+            if (!_0xUrl || _0xUrl.trim() === "" || _0xUrl.includes("TU_NUEVO_ID_AQUI")) { 
+                updateLeaderboardUI(); return; 
+            }
             try {
                 const response = await fetch(_0xUrl);
                 const data = await response.json();
@@ -1000,10 +1025,13 @@
 
         function startLeaderboardPolling() {
             if(leaderboardPollingInterval) clearInterval(leaderboardPollingInterval);
-            fetchLeaderboardData(); leaderboardPollingInterval = setInterval(fetchLeaderboardData, 10000); 
+            fetchLeaderboardData(); 
+            leaderboardPollingInterval = setInterval(fetchLeaderboardData, 10000); 
         }
 
-        function stopLeaderboardPolling() { if(leaderboardPollingInterval) clearInterval(leaderboardPollingInterval); }
+        function stopLeaderboardPolling() { 
+            if(leaderboardPollingInterval) clearInterval(leaderboardPollingInterval); 
+        }
 
         function updateLeaderboardUI() {
             let validData = leaderboardData;
